@@ -11,6 +11,8 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
+const VERSION string = "1.0.0"
+
 type Model string
 
 const (
@@ -37,6 +39,11 @@ var model = flag.String(
 	"model",
 	string(free),
 	"the model name, e.g. gemma-4-26b-a4b-it")
+var version = flag.Bool(
+	"version",
+	false,
+	"the current version of the package",
+)
 
 func checkForEnv() (string, bool) {
 	value, exists := os.LookupEnv("GEMINI_API_KEY")
@@ -65,6 +72,11 @@ func main() {
 
 	if *help {
 		helpMenu()
+		os.Exit(0)
+	}
+
+	if *version {
+		fmt.Println("ask\nversion: ", VERSION)
 		os.Exit(0)
 	}
 

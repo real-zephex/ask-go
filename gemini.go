@@ -36,6 +36,8 @@ This function takes in the messages array from the database and user query and r
 It first creates an array of size one more than the messages array
 It then appends the messages to the this new array after converting them to gemini api compatible syntax
 at last it appends the user query to the array and we are done
+
+make(type, currentLength, fullLength)
 */
 func historyToGenAIContents(messages []Message, query string) []*genai.Content {
 	contents := make([]*genai.Content, 0, len(messages)+1)
