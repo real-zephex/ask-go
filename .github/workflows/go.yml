@@ -1,0 +1,81 @@
+name: Go
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.20"
+
+      - name: Set binary metadata
+        id: vars
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Linux)
+              echo "target=linux-amd64" >> "$GITHUB_OUTPUT"
+              echo "ext=" >> "$GITHUB_OUTPUT"
+              ;;
+            Windows)
+              echo "target=windows-amd64" >> "$GITHUB_OUTPUT"
+              echo "ext=.exe" >> "$GITHUB_OUTPUT"
+              ;;
+            macOS)
+              echo "target=darwin-amd64" >> "$GITHUB_OUTPUT"
+              echo "ext=" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Build executable
+        shell: bash
+        env:
+          BINARY_NAME: go-ask
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags="-s -w" \
+            -o "dist/${BINARY_NAME}-${{ steps.vars.outputs.target }}${{ steps.vars.outputs.ext }}" .
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: executable-${{ steps.vars.outputs.target }}
+          path: dist/*
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: executable-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
