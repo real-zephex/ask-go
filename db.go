@@ -40,7 +40,7 @@ func initDB() *sql.DB {
 }
 
 func saveMessage(db *sql.DB, role string, content string) {
-	_, err := db.Query(
+	_, err := db.Exec(
 		"INSERT INTO messages (role, content) VALUES (?, ?)",
 		role, content,
 	)
@@ -66,4 +66,13 @@ func getHistory(db *sql.DB, limit int) []Message {
 		messages = append(messages, m)
 	}
 	return messages
+}
+
+func clearDatabase(db *sql.DB) {
+	_, err := db.Exec(
+		"DELETE FROM messages",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

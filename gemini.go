@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-
 	"google.golang.org/genai"
 )
 
@@ -32,10 +31,9 @@ func messageFromDB(m Message) GeminiMessage {
 
 /*
 This function takes in the messages array from the database and user query and returns gemini api compatible format
-
-It first creates an array of size one more than the messages array
-It then appends the messages to the this new array after converting them to gemini api compatible syntax
-at last it appends the user query to the array and we are done
+- It first creates an array of size one more than the messages array
+- It then appends the messages to the this new array after converting them to gemini api compatible syntax
+- at last it appends the user query to the array and we are done
 
 make(type, currentLength, fullLength)
 */
@@ -55,7 +53,7 @@ func historyToGenAIContents(messages []Message, query string) []*genai.Content {
 	return contents
 }
 
-func run(ctx context.Context, key string, query string, model string) string {
+func run(ctx context.Context, key string, query string, model string, reasoning string) string {
 	// initializing the database
 	db := initDB()
 	defer db.Close()
@@ -80,7 +78,8 @@ func run(ctx context.Context, key string, query string, model string) string {
 	var config *genai.GenerateContentConfig = &genai.GenerateContentConfig{
 		Tools:          tools,
 		ThinkingConfig: &genai.ThinkingConfig{
-			//      ThinkingLevel: genai.Ptr[string]("HIGH"),
+			ThinkingLevel: genai.ThinkingLevel(reasoning),
+			IncludeThoughts: true,
 		},
 	}
 
@@ -89,6 +88,15 @@ func run(ctx context.Context, key string, query string, model string) string {
 	result, err := client.Models.GenerateContent(ctx, model, contents, config)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// loggin the reasoning
+	for _, part := range result.Candidates[0].Content.Parts {
+		if part.Text != "" {
+			if part.Thought {
+				render("# Thoughts\n" + part.Text + "---")
+			}
+		}
 	}
 	return result.Text()
 }
