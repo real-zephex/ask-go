@@ -13,6 +13,9 @@ func helpMenu() {
 
 USAGE:
   ask [flags] <prompt>
+  ask chat
+  ask --chat
+  ask completion [bash|zsh|fish]
   ask --help
 
 EXAMPLES:
@@ -20,6 +23,11 @@ EXAMPLES:
   ask "explain interfaces in go"
   ask --model exp "analyze this architecture deeply"
   ask --reason HIGH "design a scalable queue worker system"
+  ask chat
+  ask --chat --agent
+  ask --chat --agent --yolo
+  ask --system ./system.txt "review this architecture"
+  ask completion bash
   cat main.go | ask "explain this code"
   tail -n 50 app.log | ask --model cheap "summarize errors"
 
@@ -40,6 +48,14 @@ FLAGS:
   --model       Model name or alias: free|cheap|exp
   --reason      Reasoning effort: HIGH|MED|LOW|MIN
   --clear       Clear local conversation history database
+  --chat        Start interactive chat (REPL) mode
+  --stream      Stream incremental rendered markdown updates (default: true)
+  --agent       Enable agent mode in chat (model can request shell commands)
+  --yolo        Auto-approve shell commands in agent mode (dangerous)
+  --system      Path to a file containing system prompt text
+
+CHAT TIP:
+  Use /help inside chat mode to see all slash commands.
     `)
 	os.Exit(0)
 }

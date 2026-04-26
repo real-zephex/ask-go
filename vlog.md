@@ -29,3 +29,11 @@ However, the Gemini API is a mess. I like the models, but not the way we are sup
 The Gemini SDK code for Go is very verbose. I am not a big fan of the SDK yet, but if it works then I am happy. I also baked in database support using SQLite, and the last 20 messages are passed with every message as context.
 
 I was exploring the possibility of adding support for streaming, but I was not able to find any viable way to do so without causing issues like duplication, broken markdown rendering, etc. I am sticking with no streaming for now.
+
+### Update | April 25, 2026
+The project has evolved into a stable CLI tool for quick LLM interactions. It is now fully functional with its core features:
+- **CLI-based prompt engineering**: Seamlessly integrates with the local terminal environment.
+- **Context Handling**: Successfully implemented persistent chat history via SQLite, allowing for coherent multi-turn conversations.
+- **Interactive UI**: Leverages charmbracelet libraries (lipgloss, glamour) to provide a clean, readable output directly in the terminal, bypassing the need for browsers.
+- **Project Structure**: Well-organized codebase separating API logic (gemini.go), database interactions (db.go), and UI rendering (renderer.go, ui.go).
+- **Current State**: The tool is now actively used for debugging and rapid development tasks. While streaming remains unimplemented to ensure output stability, the request-response cycle is fast enough for most CLI workflows.
