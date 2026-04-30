@@ -104,7 +104,7 @@ func startREPL(ctx context.Context, db *sql.DB, key string, model string, reason
 		saveMessage(db, "user", input)
 		saveMessage(db, "assistant", res)
 
-		scheduleRememberTurn(input, res)
+//		scheduleRememberTurn(input, res)
 	}
 }
 

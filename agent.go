@@ -135,8 +135,9 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 
 func runAgentTurn(ctx context.Context, db *sql.DB, key string, query string, model string, reasoning string, autoApprove bool) string {
 	messages := getHistory(db, 20)
-	queryWithMemory := injectMemoryContext(ctx, query)
-	contents := historyToGenAIContents(messages, queryWithMemory)
+	// since we have crud tools for managing memories, model can interact with them directly and injecting memory into the prompt will only clutter it
+//	queryWithMemory := injectMemoryContext(ctx, query)
+	contents := historyToGenAIContents(messages, query)
 
 	client := newGeminiClient(ctx, key)
 	config := buildAgentGenerationConfig(reasoning)
