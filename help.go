@@ -14,6 +14,8 @@ func helpMenu() {
 USAGE:
   ask [flags] <prompt>
   ask chat
+  ask memories
+  ask memories manage
   ask --chat
   ask completion [bash|zsh|fish]
   ask --help
@@ -27,6 +29,8 @@ EXAMPLES:
   ask --chat --agent
   ask --chat --agent --yolo
   ask --system ./system.txt "review this architecture"
+  ask memories
+  ask memories manage
   ask completion bash
   cat main.go | ask "explain this code"
   tail -n 50 app.log | ask --model cheap "summarize errors"

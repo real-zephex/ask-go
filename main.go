@@ -155,6 +155,25 @@ func main() {
 		os.Exit(0)
 	}
 
+	if len(args) == 1 && args[0] == "memories" {
+		memories, err := listStoredMemories()
+		if err != nil {
+			log.Fatalf("failed to list memories: %v", err)
+		}
+		if len(memories) == 0 {
+			fmt.Println("No stored memories found.")
+			os.Exit(0)
+		}
+		for i, memory := range memories {
+			fmt.Printf("%d. %s\n", i+1, memory)
+		}
+		os.Exit(0)
+	}
+	if len(args) == 2 && args[0] == "memories" && args[1] == "manage" {
+		runMemoryManager(ctx)
+		os.Exit(0)
+	}
+
 	if *systemFile != "" {
 		runtimeSystemPrompt = loadSystemPromptFromFile(*systemFile)
 	}

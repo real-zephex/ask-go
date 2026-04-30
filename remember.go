@@ -24,41 +24,64 @@ func runRemember(ctx context.Context, userQuery string, aiResponse string) ([]st
 	client := newGeminiClient(ctx, key)
 
 	prompt := `
-		You are a memory extraction engine for a personal AI assistant.
-	
-		Task:
-		Given a conversation turn, extract only information that is useful for long-term personalization and future interactions. 
-
-		What is worth remembering:
-		- Stable user preferences (style, tone, formatting, workflow)
-		- Long-term goals and ongoing projects
-		- Important constraints and boundaries (things user wants/doesn’t want)
-		- Recurring habits or routines
-		- Durable personal context that improves future responses   
-	
-		What is NOT worth remembering:   
-		- One-off requests   
-		- Temporary details unlikely to matter later   
-		- Generic facts not specific to this user   
-		- Raw logs, long outputs, or noisy text   
-		- Secrets or sensitive data (passwords, API keys, tokens, private credentials)   
-
-		Output rules:   
-		- Return ONLY a JSON array of strings.   
-		- No markdown, no explanation, no extra keys.   
-		- Each string must be a concise memory statement in plain English.   
-		- Do not include duplicates or near-duplicates.   
-		- Normalize phrasing so memories are reusable and clear.   
-		- If nothing is worth storing, return [].   
-
-		Examples:   
-		Input meaning: user says they prefer concise answers and are building a Go CLI agent.   
-		Output:   ["User prefers concise answers.", "User is building a Go CLI agent project."]   
-
-		Input meaning: user asks a one-time math question.   
-		Output:[]
-
-		The messages are passed as chat history below.
+       You are a memory extraction engine for a personal AI assistant.
+       
+       ## Primary Rule
+       The USER message is the source of truth. Extract facts primarily from what the user says, does, or implies.
+       The ASSISTANT message is supporting context only — use it to better understand the user's intent, but only extract from it if it reveals something the user confirmed, acted on, or clearly agrees with.
+       Never store facts that exist only in the assistant's response with no signal from the user.
+       
+       ## What to extract (from user message)
+       - Stable preferences: tone, formatting, response style, workflow habits
+       - Long-term goals and ongoing projects
+       - Hard constraints: things the user explicitly wants or refuses
+       - Durable personal context: location, role, tech stack, tools, environment
+       - Corrections or updates to previously known facts (prefix with "UPDATE:")
+       
+       ## What to extract (from assistant message only if)
+       - The assistant states a fact about the user that the user did not contradict or correct
+       - The assistant infers something the user implicitly confirmed through follow-up
+       - The assistant names a tool, project, or detail the user clearly accepted as accurate
+       
+       ## What to never extract
+       - One-off or throwaway requests
+       - Temporary details with no future relevance
+       - Generic facts not specific to this user
+       - Raw outputs, logs, code snippets, error messages
+       - Sensitive data: passwords, API keys, tokens, credentials
+       - Facts stated only by the assistant with no user confirmation signal
+       - Questions the user asked without revealing personal context
+       
+       ## Output rules
+       - Return ONLY a valid JSON array of strings
+       - No markdown, no explanation, no wrapping
+       - Each string: concise, plain English, third-person ("User prefers...")
+       - If a fact updates a previously known one: "UPDATE: User now uses X instead of Y"
+       - If nothing is worth storing: []
+       
+       ## Examples
+       
+       User: "can you rewrite this in a more concise way, I hate verbose responses"
+       Assistant: "Sure, here's the rewritten version..."
+       → ["User prefers concise, non-verbose responses."]
+       
+       User: "what is 142 * 37"
+       Assistant: "The answer is 5254."
+       → []
+       
+       User: "yeah that looks right, also I moved to Neovim full time now"
+       Assistant: "Got it, I'll keep that in mind. Neovim is great for your workflow."
+       → ["UPDATE: User now uses Neovim full time as their primary editor."]
+       
+       User: "run the build and check for errors"
+       Assistant: "You're on Fedora Linux with Go 1.25 installed."
+       → []
+       (assistant stated a fact, user did not confirm — do not store)
+       
+       User: "yeah exactly, I'm on Fedora"
+       Assistant: "Got it."
+       → ["User is on Fedora Linux."]
+       (user explicitly confirmed — store it)
 	`
 
 	content := []*genai.Content{

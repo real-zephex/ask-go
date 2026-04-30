@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	maxAgentToolRounds   = 8
+	maxAgentToolRounds   = 20 
 	defaultShellTimeout  = 30
 	minimumShellTimeout  = 1
 	maximumShellTimeout  = 180
@@ -63,12 +63,69 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 		"required": []string{"command"},
 	}
 
+	memoryIDSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"memory_id": map[string]any{
+				"type":        "string",
+				"description": "The stable memory ID returned by memory_view.",
+			},
+		},
+		"required": []string{"memory_id"},
+	}
+
+	memoryContentSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"content": map[string]any{
+				"type":        "string",
+				"description": "Memory text content.",
+			},
+		},
+		"required": []string{"content"},
+	}
+
+	memoryUpdateSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"memory_id": map[string]any{
+				"type":        "string",
+				"description": "The stable memory ID returned by memory_view.",
+			},
+			"content": map[string]any{
+				"type":        "string",
+				"description": "New memory text content.",
+			},
+		},
+		"required": []string{"memory_id", "content"},
+	}
+
 	cfg.Tools = append(cfg.Tools, &genai.Tool{
 		FunctionDeclarations: []*genai.FunctionDeclaration{
 			{
 				Name:                 "run_shell_command",
 				Description:          "Run a shell command on the local machine and return stdout/stderr/exit code.",
 				ParametersJsonSchema: shellCommandSchema,
+			},
+			{
+				Name:                 "memory_view",
+				Description:          "List all currently stored memories with their IDs.",
+				ParametersJsonSchema: map[string]any{"type": "object", "properties": map[string]any{}},
+			},
+			{
+				Name:                 "memory_add",
+				Description:          "Add a new memory to long-term memory storage.",
+				ParametersJsonSchema: memoryContentSchema,
+			},
+			{
+				Name:                 "memory_delete",
+				Description:          "Delete one memory by memory_id.",
+				ParametersJsonSchema: memoryIDSchema,
+			},
+			{
+				Name:                 "memory_update",
+				Description:          "Update one memory by memory_id.",
+				ParametersJsonSchema: memoryUpdateSchema,
 			},
 		},
 	})
@@ -129,7 +186,94 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool) map[str
 		return map[string]any{"error": map[string]any{"message": "nil function call"}}
 	}
 
-	if call.Name != "run_shell_command" {
+	switch call.Name {
+	case "run_shell_command":
+		req, err := parseShellCommandRequest(call.Args)
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+
+		printToolCall(req)
+		if !autoApprove && !askForCommandApproval() {
+			printToolDenied()
+			return map[string]any{
+				"error": map[string]any{"message": "command denied by user"},
+				"output": map[string]any{
+					"command":           req.Command,
+					"working_directory": req.WorkingDirectory,
+					"timeout_seconds":   req.TimeoutSeconds,
+				},
+			}
+		}
+
+		res := executeShellCommand(req)
+		printToolResult(res)
+		return res.toToolResponse()
+	case "memory_view":
+		records, err := listStoredMemoryRecords()
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+		items := make([]map[string]any, 0, len(records))
+		for _, record := range records {
+			items = append(items, map[string]any{
+				"id":      record.ID,
+				"content": record.Content,
+			})
+		}
+		return map[string]any{
+			"count":    len(items),
+			"memories": items,
+		}
+	case "memory_add":
+		content, err := requiredStringArg(call.Args, "content")
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+		record, err := addMemory(context.Background(), content)
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+		return map[string]any{
+			"ok": true,
+			"memory": map[string]any{
+				"id":      record.ID,
+				"content": record.Content,
+			},
+		}
+	case "memory_delete":
+		id, err := requiredStringArg(call.Args, "memory_id")
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+		if err := deleteMemoryByID(context.Background(), id); err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+		return map[string]any{
+			"ok":        true,
+			"memory_id": id,
+		}
+	case "memory_update":
+		id, err := requiredStringArg(call.Args, "memory_id")
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+		content, err := requiredStringArg(call.Args, "content")
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+		record, err := updateMemoryByID(context.Background(), id, content)
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+		return map[string]any{
+			"ok": true,
+			"memory": map[string]any{
+				"id":      record.ID,
+				"content": record.Content,
+			},
+		}
+	default:
 		return map[string]any{
 			"error": map[string]any{
 				"message": "unsupported function call",
@@ -137,28 +281,21 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool) map[str
 			},
 		}
 	}
+}
 
-	req, err := parseShellCommandRequest(call.Args)
-	if err != nil {
-		return map[string]any{"error": map[string]any{"message": err.Error()}}
+func requiredStringArg(args map[string]any, key string) (string, error) {
+	if args == nil {
+		return "", errors.New("function args missing")
 	}
-
-	printToolCall(req)
-	if !autoApprove && !askForCommandApproval() {
-		printToolDenied()
-		return map[string]any{
-			"error": map[string]any{"message": "command denied by user"},
-			"output": map[string]any{
-				"command":           req.Command,
-				"working_directory": req.WorkingDirectory,
-				"timeout_seconds":   req.TimeoutSeconds,
-			},
-		}
+	raw, ok := args[key]
+	if !ok {
+		return "", fmt.Errorf("missing required argument: %s", key)
 	}
-
-	res := executeShellCommand(req)
-	printToolResult(res)
-	return res.toToolResponse()
+	value, ok := raw.(string)
+	if !ok || strings.TrimSpace(value) == "" {
+		return "", fmt.Errorf("argument '%s' must be a non-empty string", key)
+	}
+	return strings.TrimSpace(value), nil
 }
 
 func parseShellCommandRequest(args map[string]any) (shellCommandRequest, error) {

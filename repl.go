@@ -47,6 +47,19 @@ func startREPL(ctx context.Context, db *sql.DB, key string, model string, reason
 			continue
 		}
 
+		// Slash commands are local control actions and should never be learned as memories.
+		if strings.HasPrefix(input, "/") {
+			handled, shouldExit := handleSlashCommand(input, db, state)
+			if shouldExit {
+				waitForRememberTasks("Closing chat")
+				fmt.Println("Goodbye!")
+				return
+			}
+			if handled {
+				continue
+			}
+		}
+
 		handled, shouldExit := handleSlashCommand(input, db, state)
 		if shouldExit {
 			waitForRememberTasks("Closing chat")
@@ -207,6 +220,10 @@ func handleSlashCommand(input string, db *sql.DB, state *replState) (handled boo
 		}
 		printHistory(db, limit)
 		return true, false
+	case "/memories":
+		waitForRememberTasks("Syncing memory tasks before opening memory manager")
+		runMemoryManager(context.Background())
+		return true, false
 	default:
 		fmt.Printf("Unknown command: %s (use /help)\n", cmd)
 		return true, false
@@ -256,6 +273,7 @@ func printSlashHelp() {
 	fmt.Println("  /pwd                 Print current working directory")
 	fmt.Println("  /cd <path>           Change current working directory")
 	fmt.Println("  /history [n]         Show last n saved messages (default 10, max 50)")
+	fmt.Println("  /memories            Open interactive memory manager (list/delete)")
 	fmt.Println("  /exit                Exit chat mode")
 }
 
