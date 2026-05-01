@@ -212,6 +212,38 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 		"required": []string{"action"},
 	}
 
+	httpRequestSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"url": map[string]any{
+				"type":        "string",
+				"description": "Complete URL including scheme (e.g., https://api.example.com/users)",
+			},
+			"method": map[string]any{
+				"type":        "string",
+				"description": "HTTP method to use",
+				"enum":        []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+			},
+			"headers": map[string]any{
+				"type":        "object",
+				"description": "Optional HTTP headers as key-value pairs (e.g., {\"Authorization\": \"Bearer token\"})",
+			},
+			"body": map[string]any{
+				"type":        "string",
+				"description": "Request body as a string. Must be pre-serialized JSON if needed. Ignored for GET and DELETE methods.",
+			},
+			"timeout_seconds": map[string]any{
+				"type":        "integer",
+				"description": "Request timeout between 1 and 60 seconds. Default is 10.",
+			},
+			"reason": map[string]any{
+				"type":        "string",
+				"description": "Optional explanation for why this request is being made",
+			},
+		},
+		"required": []string{"url"},
+	}
+
 	cfg.Tools = append(cfg.Tools, &genai.Tool{
 		FunctionDeclarations: []*genai.FunctionDeclaration{
 			{
@@ -258,6 +290,11 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 				Name:                 "lists",
 				Description:          "Manage named lists with items that have status tracking (pending/done). Supports creating lists, adding items, updating item status, and querying lists and items.",
 				ParametersJsonSchema: listsSchema,
+			},
+			{
+				Name:                 "http_request",
+				Description:          "Make HTTP requests to any URL and receive structured responses. Supports GET, POST, PUT, PATCH, and DELETE methods with custom headers and body. POST/PUT/PATCH/DELETE require user approval unless --yolo is active.",
+				ParametersJsonSchema: httpRequestSchema,
 			},
 		},
 	})
@@ -463,6 +500,30 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql
 		}
 
 		res := executeLists(db, req, autoApprove)
+		return res.toToolResponse()
+	case "http_request":
+		req, err := parseHTTPRequestRequest(call.Args)
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+
+		// Require approval for POST, PUT, PATCH, DELETE unless --yolo is active
+		if !autoApprove && (req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH" || req.Method == "DELETE") {
+			printHTTPRequestCall(req)
+			if !askForHTTPRequestApproval() {
+				printHTTPRequestDenied()
+				return map[string]any{
+					"error": map[string]any{"message": "request denied by user"},
+					"output": map[string]any{
+						"method": req.Method,
+						"url":    req.URL,
+					},
+				}
+			}
+		}
+
+		res := executeHTTPRequest(req)
+		printHTTPRequestResult(res)
 		return res.toToolResponse()
 	default:
 		return map[string]any{

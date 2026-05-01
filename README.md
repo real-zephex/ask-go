@@ -1,15 +1,7 @@
-# ask 🤖
+# ask
 
 <p align="center"><b>Cloud intelligence. Local control.</b></p>
-<p align="center">Local-first, agentic CLI assistant with tool use + long-term memory.</p>
-
-<p align="center">
-  <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/go-1.25%2B-blue.svg"></a>
-  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green.svg"></a>
-  <a href="#-chat-mode-repl"><img alt="Interactive REPL" src="https://img.shields.io/badge/chat-REPL-7c3aed.svg"></a>
-  <a href="#-agent-mode-shell-tool-use"><img alt="Agent mode" src="https://img.shields.io/badge/agent-shell%20tools-f97316.svg"></a>
-  <a href="#-architecture-current"><img alt="Local-first memory" src="https://img.shields.io/badge/memory-local--first-9333ea.svg"></a>
-</p>
+<p align="center">A local-first, agentic CLI assistant built in Go.</p>
 
 <p align="center">
   <a href="./assets/demo-smooth.gif">
@@ -19,93 +11,31 @@
   <sub>Click the demo to open a higher-quality version.</sub>
 </p>
 
-`ask` is a local-first, agentic CLI assistant built in Go.
+`ask` runs in your terminal, keeps local state on disk, and can optionally use agent tools (shell, file edits, HTTP, clipboard, lists, and memory CRUD) with approval gates.
 
-Most AI tools stop at text. `ask` can **chat**, **run shell tools with approval**, and **remember what matters** across sessions — directly in your terminal.
+## Features
 
-Privacy-first by architecture:
-- **[SQLite](https://www.sqlite.org/) (local):** short-term conversation history
-- **[chromem-go](https://github.com/philippgille/chromem-go) (local):** long-term vector memory
-- **[Google Gemini](https://ai.google.dev/) (remote):** generation, memory extraction, and embeddings
+- Interactive REPL chat mode with slash commands
+- One-shot prompt mode (`ask "..."`) with optional stdin piping
+- Streaming rendered markdown output
+- Agent mode with function/tool calling
+- Per-action approval flow with optional `--yolo` auto-approve
+- Local chat history in SQLite
+- Local vector memory store (view/add/update/delete)
+- Named lists/todos stored locally (usable via agent tool)
+- Shell completion generation for bash/zsh/fish
+- System prompt override from file (`--system`)
 
-> Except model inference/embedding calls, your assistant state stays on your machine.
+## Requirements
 
-**Quick links:** [Features](#-features) · [Architecture](#-architecture-current) · [Usage](#-usage) · [Chat Mode](#-chat-mode-repl) · [Agent Mode](#-agent-mode-shell-tool-use) · [Shell Completions](#-shell-completions)
-
-Quick try:
-
-```bash
-ask --chat --agent --model cheap
-```
-
----
-
-## ✨ What this project is
-
-`ask` is designed to be an **interactive personal CLI assistant**:
-- fast enough for everyday terminal workflows
-- controllable via flags and slash commands
-- agentic when needed (with explicit safety prompts)
-- capable of remembering preferences and recurring context across sessions
-
----
-
-## ✨ Features
-
-- 🔎 **Google Search tool enabled** in generation config
-- 🎨 **Markdown rendering** via [`glamour`](https://github.com/charmbracelet/glamour)
-- ⚡ **Streaming rendered markdown** (not raw chunk spam)
-- 💬 **Interactive chat (REPL)** with slash commands
-- 🛠️ **Agent mode** with shell tool calls (`run_shell_command`)
-- ✅ **Approval flow** for tool calls (`--yolo` to auto-approve)
-- 🧾 **System prompt from file** (`--system path/to/file.txt`)
-- 🧠 **Long-term memory** with:
-  - extraction pass per completed turn
-  - vector storage in chromem-go
-  - top relevant memories injected into future prompts
-- ⌨️ **Shell completion generation** (bash/zsh/fish)
-
----
-
-## 🧱 Architecture (current)
-
-### 1) Short-term history
-- Stored in SQLite: `~/.ask-go.db`
-- Last ~20 messages are sent as conversational context
-
-### 2) Long-term memory
-- Stored in chromem-go persistent DB under: `~/db`
-- Flow per turn:
-  1. user + assistant turn completed
-  2. async memory extractor decides what to keep (JSON array of strings)
-  3. kept memories are hashed + embedded
-  4. saved in vector DB
-
-- On each new query:
-  - retrieve top **5** relevant memories
-  - inject them as memory context before the user query
-
-### 3) Async memory processing
-- Memory save runs in a goroutine (non-blocking response path)
-- On interrupt/exit, app waits for pending memory tasks to finish
-- Prints memory status such as:
-  - `🧠 memory: saved N item(s)`
-  - `🧠 memory: no new items saved`
-
----
-
-## 📦 Requirements
-
-- Go **1.25+**
-- `GEMINI_API_KEY` set in environment
+- Go 1.25+
+- `GEMINI_API_KEY` in environment
 
 ```bash
 export GEMINI_API_KEY="your_key_here"
 ```
 
----
-
-## 🚀 Installation
+## Install
 
 ```bash
 git clone https://github.com/zephex/go-ask.git
@@ -114,75 +44,57 @@ go build -o ask
 ```
 
 Optional:
+
 ```bash
 sudo mv ask /usr/local/bin/
 ```
 
----
+## Usage
 
-## 🧪 Usage
-
-### Basic
 ```bash
 ask "What is a goroutine?"
-ask "Explain interfaces in Go"
-```
-
-### Model presets
-- `free`  → `gemma-4-26b-a4b-it` (default)
-- `cheap` → `gemini-3.1-flash-lite-preview`
-- `exp`   → `gemini-3-flash-preview`
-
-```bash
 ask --model exp "Analyze this architecture"
+cat main.go | ask "Explain this code"
 ```
+
+### Model aliases
+
+- `free` -> `gemma-4-26b-a4b-it` (default)
+- `cheap` -> `gemini-3.1-flash-lite-preview`
+- `exp` -> `gemini-3-flash-preview`
 
 ### Reasoning levels
-Accepted values map to Gemini thinking levels:
+
 - `HIGH`
 - `MED` / `MID` / `MEDIUM`
 - `LOW`
 - `MIN` / `MINIMAL`
 
-```bash
-ask --reason HIGH "Design a scalable queue worker"
-```
+### Useful flags
 
-### Stream toggle
-Streaming is on by default.
+- `--chat` start REPL
+- `--agent` enable tool calling in REPL
+- `--yolo` auto-approve tool actions that normally prompt
+- `--stream` stream rendered markdown (default `true`)
+- `--system <file>` load custom system prompt
+- `--clear` clear local conversation history
 
-```bash
-ask --stream=false "Explain Go interfaces"
-```
-
-### System prompt from file
-```bash
-ask --system ./system.txt "Review this module"
-ask --chat --system ./prompts/mentor.txt
-```
-
-### Pipe input
-```bash
-cat main.go | ask "Explain this code"
-tail -n 50 app.log | ask --model cheap "Summarize errors"
-```
-
----
-
-## 💬 Chat mode (REPL)
+## Chat Mode
 
 Start:
+
 ```bash
 ask chat
 # or
 ask --chat
 ```
 
-### Slash commands
-- `/help` – show commands
-- `/status` – current model/reasoning/stream/agent/yolo/cwd
-- `/model <alias|name>` – switch model
-- `/reason <HIGH|MED|LOW|MIN>` – switch reasoning
+Slash commands:
+
+- `/help`
+- `/status`
+- `/model <alias|name>`
+- `/reason <HIGH|MED|LOW|MIN>`
 - `/stream on|off`
 - `/agent on|off`
 - `/yolo on|off`
@@ -190,84 +102,113 @@ ask --chat
 - `/cd <path>`
 - `/history [n]`
 - `/clear`
+- `/memories` (opens memory manager)
 - `/exit` or `/quit`
 
----
+## Memory
 
-## 🤖 Agent mode (shell tool use)
+Long-term memory is stored locally in a chromem persistent DB and is accessible in two ways:
 
-Enable:
-```bash
-ask --chat --agent
-```
+- CLI: `ask memories` (list), `ask memories manage` (interactive manager)
+- Agent tools: `memory_view`, `memory_add`, `memory_update`, `memory_delete`
 
-Auto-approve tool calls (dangerous):
-```bash
-ask --chat --agent --yolo
-```
+Memory manager commands:
 
-Behavior:
-- model can request `run_shell_command`
-- command output (stdout/stderr/exit code) is returned to the model
-- default path asks user approval per command
+- `l` / `list`
+- `d <n>` / `del <n>`
+- `da` / `delall`
+- `q` / `quit`
 
----
+Important current behavior:
 
-## ⌨️ Shell completions
+- Memory is **not automatically injected** into prompts in agent mode.
+- Automatic per-turn memory extraction/saving is currently **disabled** in runtime flow.
+- Memory changes currently happen through explicit memory management commands/tools.
 
-Generate scripts:
+### How Memory Works
+
+1. Storage layer
+- Memories are stored in a local chromem persistent DB under `~/db`.
+- Each memory is a document with a stable `id` and `content`.
+- IDs are generated from content hashing for deterministic identity.
+
+2. Listing and management
+- `ask memories` prints stored memory entries.
+- `ask memories manage` opens an interactive manager for list/delete/delete-all.
+- In agent mode, the model can call `memory_view`, `memory_add`, `memory_update`, and `memory_delete`.
+
+3. Memory retrieval behavior
+- There is retrieval/query code in the project (`recallMemories` and `injectMemoryContext`), but it is currently not wired into agent turn prompts.
+- That means memory is not auto-attached to every model request right now.
+
+4. Automatic memory extraction status
+- The project includes async memory extraction/saving code (`scheduleRememberTurn` + extractor prompt flow).
+- At runtime, those calls are currently commented out in the main chat/request flow.
+- Result: memory writes are currently explicit/manual (CLI manager or memory CRUD tools), not automatic per turn.
+
+## Agent Tools
+
+When agent mode is on (`ask --chat --agent`), these tools are available:
+
+1. `run_shell_command`
+- Runs `bash -lc` command in selected directory
+- Returns stdout/stderr/exit code/duration
+- Requires approval unless `--yolo`
+
+2. `read_file`
+- Reads file contents
+- Optional `start_line`/`end_line`
+- Read-only, no approval
+
+3. `write_file`
+- Exact string replacement (`old_str` -> `new_str`)
+- Shows a diff preview
+- Requires approval unless `--yolo`
+
+4. `clipboard`
+- `read` clipboard (no approval)
+- `write` clipboard (approval required unless `--yolo`)
+
+5. `lists`
+- Actions: `create_list`, `delete_list`, `get_lists`, `add_item`, `update_item`, `delete_item`, `get_items`
+- `delete_list` requires approval unless `--yolo`
+
+6. `http_request`
+- Supports `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
+- GET does not require approval
+- `POST`/`PUT`/`PATCH`/`DELETE` require approval unless `--yolo`
+
+7. `memory_view`
+- Lists stored memories with stable IDs
+
+8. `memory_add`
+- Adds a memory item
+
+9. `memory_update`
+- Updates memory content by ID
+
+10. `memory_delete`
+- Deletes memory by ID
+
+## Completions
+
 ```bash
 ask completion bash
 ask completion zsh
 ask completion fish
 ```
 
-Install examples:
-```bash
-# bash
-ask completion bash > ~/.local/share/bash-completion/completions/ask
+## Data Locations
 
-# zsh
-ask completion zsh > ~/.zfunc/_ask
-
-# fish
-ask completion fish > ~/.config/fish/completions/ask.fish
-```
-
----
-
-## 🗂️ Data locations
-
-- Chat history (SQLite): `~/.ask-go.db`
+- Conversation + lists (SQLite): `~/.ask-go.db`
 - Vector memory DB (chromem): `~/db`
 
----
+## Safety Notes
 
-## ⚠️ Safety notes
+- `--chat --agent --yolo` auto-approves sensitive tool actions.
+- Use `--yolo` only in trusted environments.
+- Prompt content and chat history are stored locally.
 
-- `--chat --agent --yolo` executes model-requested shell commands without manual approval.
-- Use YOLO mode only in trusted environments.
-- Never paste secrets into prompts if you don’t want them in logs/history.
+## License
 
----
-
-## 🛠️ Current limitations
-
-- Memory retrieval is simple top-k (no reranker yet)
-- Memory extraction prompt is static
-- No memory dashboard/management commands yet
-
----
-
-## 🤝 Contributing
-
-PRs are welcome. If you open one, include:
-- what changed
-- why it changed
-- how you tested it
-
----
-
-## 📄 License
-
-MIT — see `LICENSE`.
+MIT (see `LICENSE`).

@@ -240,6 +240,6 @@ func main() {
 	saveMessage(db, "user", query)
 	saveMessage(db, "assistant", res)
 
-	scheduleRememberTurn(query, res)
-	waitForRememberTasks("Finishing memory sync before exit")
+	// scheduleRememberTurn(query, res)
+	// waitForRememberTasks("Finishing memory sync before exit")
 }
