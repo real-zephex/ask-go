@@ -183,6 +183,35 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 		"required": []string{"action"},
 	}
 
+	listsSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"action": map[string]any{
+				"type":        "string",
+				"description": "Action to perform: create_list, delete_list, get_lists, add_item, update_item, delete_item, get_items",
+				"enum":        []string{"create_list", "delete_list", "get_lists", "add_item", "update_item", "delete_item", "get_items"},
+			},
+			"list_name": map[string]any{
+				"type":        "string",
+				"description": "Name of the list to operate on",
+			},
+			"item_id": map[string]any{
+				"type":        "integer",
+				"description": "ID of the item to update or delete",
+			},
+			"item_content": map[string]any{
+				"type":        "string",
+				"description": "Text content of the item",
+			},
+			"status": map[string]any{
+				"type":        "string",
+				"description": "Item status: 'pending' or 'done'",
+				"enum":        []string{"pending", "done"},
+			},
+		},
+		"required": []string{"action"},
+	}
+
 	cfg.Tools = append(cfg.Tools, &genai.Tool{
 		FunctionDeclarations: []*genai.FunctionDeclaration{
 			{
@@ -225,6 +254,11 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 				Description:          "Read from or write to the system clipboard. Write operations require user approval unless --yolo is active.",
 				ParametersJsonSchema: clipboardSchema,
 			},
+			{
+				Name:                 "lists",
+				Description:          "Manage named lists with items that have status tracking (pending/done). Supports creating lists, adding items, updating item status, and querying lists and items.",
+				ParametersJsonSchema: listsSchema,
+			},
 		},
 	})
 
@@ -261,7 +295,7 @@ func runAgentTurn(ctx context.Context, db *sql.DB, key string, query string, mod
 
 		responses := make([]*genai.Part, 0, len(functionCalls))
 		for _, call := range functionCalls {
-			response := handleAgentFunctionCall(call, autoApprove)
+			response := handleAgentFunctionCall(call, autoApprove, db)
 			responses = append(responses, &genai.Part{
 				FunctionResponse: &genai.FunctionResponse{
 					ID:       call.ID,
@@ -280,7 +314,7 @@ func runAgentTurn(ctx context.Context, db *sql.DB, key string, query string, mod
 	return "Agent stopped after too many tool iterations. Try a more specific instruction."
 }
 
-func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool) map[string]any {
+func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql.DB) map[string]any {
 	if call == nil {
 		return map[string]any{"error": map[string]any{"message": "nil function call"}}
 	}
@@ -421,6 +455,14 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool) map[str
 
 		res := executeClipboard(req)
 		printClipboardResult(res)
+		return res.toToolResponse()
+	case "lists":
+		req, err := parseListsRequest(call.Args)
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+
+		res := executeLists(db, req, autoApprove)
 		return res.toToolResponse()
 	default:
 		return map[string]any{
