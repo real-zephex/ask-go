@@ -158,11 +158,10 @@ func logThoughts(parts []*genai.Part) {
 func run(ctx context.Context, db *sql.DB, key string, query string, model string, reasoning string) string {
 	// by default last 20 messages are sent as context
 	messages := getHistory(db, 20)
-	queryWithMemory := injectMemoryContext(ctx, query)
 
 	client := newGeminiClient(ctx, key)
 	config := buildGenerationConfig(reasoning)
-	contents := historyToGenAIContents(messages, queryWithMemory)
+	contents := historyToGenAIContents(messages, query)
 
 	result, err := client.Models.GenerateContent(ctx, model, contents, config)
 	if err != nil {
@@ -188,11 +187,10 @@ func runStream(
 	onComplete func(string),
 ) string {
 	messages := getHistory(db, 20)
-	queryWithMemory := injectMemoryContext(ctx, query)
 
 	client := newGeminiClient(ctx, key)
 	config := buildGenerationConfig(reasoning)
-	contents := historyToGenAIContents(messages, queryWithMemory)
+	contents := historyToGenAIContents(messages, query)
 
 	var answer strings.Builder
 	var thoughts strings.Builder
