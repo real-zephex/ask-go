@@ -164,3 +164,107 @@ func visualLineCount(s string) int {
 	}
 	return count
 }
+
+
+func printWriteFileCall(req writeFileRequest) {
+	fmt.Println(toolStyle.Render("↳ tool: write_file"))
+	if req.Reason != "" {
+		fmt.Println(subtleStyle.Render("reason: " + req.Reason))
+	}
+	fmt.Println(subtleStyle.Render("path: " + req.Path))
+	
+	diff := generateDiffPreview(req.OldStr, req.NewStr)
+	fmt.Println(subtleStyle.Render("diff:"))
+	fmt.Print(diff)
+}
+
+func printEditDenied() {
+	fmt.Println(warnStyle.Render("edit denied by user"))
+}
+
+func printWriteFileResult(result writeFileResult) {
+	if result.ExecutionErr != "" {
+		fmt.Println(subtleStyle.Render(fmt.Sprintf("tool result: error • %s", result.ExecutionErr)))
+	} else {
+		fmt.Println(subtleStyle.Render(fmt.Sprintf("tool result: ok • modified %s", result.ModifiedLines)))
+	}
+}
+
+func generateDiffPreview(oldStr, newStr string) string {
+	var diff strings.Builder
+
+	oldLines := strings.Split(oldStr, "\n")
+	newLines := strings.Split(newStr, "\n")
+
+	maxLines := 10
+	contextLines := 2
+
+	if len(oldLines) <= maxLines && len(newLines) <= maxLines {
+		for _, line := range oldLines {
+			diff.WriteString(fmt.Sprintf("  - %s\n", line))
+		}
+		for _, line := range newLines {
+			diff.WriteString(fmt.Sprintf("  + %s\n", line))
+		}
+	} else {
+		diff.WriteString(fmt.Sprintf("  [showing first %d lines of diff]\n", contextLines))
+		for i := 0; i < contextLines && i < len(oldLines); i++ {
+			diff.WriteString(fmt.Sprintf("  - %s\n", oldLines[i]))
+		}
+		if len(oldLines) > contextLines {
+			diff.WriteString(fmt.Sprintf("  ... (%d more old lines)\n", len(oldLines)-contextLines))
+		}
+		for i := 0; i < contextLines && i < len(newLines); i++ {
+			diff.WriteString(fmt.Sprintf("  + %s\n", newLines[i]))
+		}
+		if len(newLines) > contextLines {
+			diff.WriteString(fmt.Sprintf("  ... (%d more new lines)\n", len(newLines)-contextLines))
+		}
+	}
+
+	return diff.String()
+}
+
+func printClipboardWriteCall(req clipboardRequest) {
+	fmt.Println(toolStyle.Render("↳ tool: clipboard"))
+	fmt.Println(subtleStyle.Render("action: write"))
+	
+	charCount := len([]rune(req.Content))
+	preview := req.Content
+	maxPreview := 200
+	
+	if charCount > maxPreview {
+		runes := []rune(req.Content)
+		preview = string(runes[:maxPreview]) + "..."
+	}
+	
+	lines := strings.Split(preview, "\n")
+	if len(lines) > 5 {
+		preview = strings.Join(lines[:5], "\n") + "\n..."
+	}
+	
+	fmt.Println(subtleStyle.Render(fmt.Sprintf("content (%d chars):", charCount)))
+	fmt.Println(preview)
+}
+
+func printClipboardDenied() {
+	fmt.Println(warnStyle.Render("clipboard write denied by user"))
+}
+
+func printClipboardResult(result clipboardResult) {
+	if result.ExecutionErr != "" {
+		fmt.Println(subtleStyle.Render(fmt.Sprintf("tool result: error • %s", result.ExecutionErr)))
+	} else if result.Request.Action == "read" {
+		if result.Content == "" {
+			fmt.Println(subtleStyle.Render("tool result: ok • clipboard is empty"))
+		} else {
+			truncMsg := ""
+			if result.Truncated {
+				truncMsg = " (truncated)"
+			}
+			fmt.Println(subtleStyle.Render(fmt.Sprintf("tool result: ok • read %d chars%s", result.CharCount, truncMsg)))
+		}
+	} else {
+		fmt.Println(subtleStyle.Render(fmt.Sprintf("tool result: ok • wrote %d chars", result.CharCount)))
+	}
+}
