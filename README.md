@@ -229,6 +229,8 @@ Run `ask` as a Telegram bot. Chat with the AI directly in Telegram with slash co
 2. Set env var: `export TELEGRAM_BOT_TOKEN="your_token_here"`
 3. Start the bot: `ask --background=true`
 
+**Shared Context:** The Telegram bot uses the same SQLite database and vector memory as the CLI, so your chat history and memories persist seamlessly across both interfaces. Switch between Telegram and terminal—context is always there.
+
 **Available commands:**
 
 - `/start` – welcome message
