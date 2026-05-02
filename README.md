@@ -1,49 +1,49 @@
 # ask
 
-<p align="center"><b>Cloud intelligence. Local control.</b></p>
-<p align="center">A local-first, agentic CLI assistant built in Go.</p>
+<p align="center"><b>AI agent for your terminal. Everything stays local.</b></p>
+<p align="center">Written in Go. Runs everywhere. Full control over your data.</p>
 
 <p align="center">
   <a href="./assets/demo-smooth.gif">
     <img src="./assets/demo-small.gif" alt="ask demo" width="900" />
   </a>
   <br/>
-  <sub>Click the demo to open a higher-quality version.</sub>
+  <sub>Click to see full demo</sub>
 </p>
 
-`ask` runs in your terminal, keeps local state on disk, and can optionally use agent tools (shell, file edits, HTTP, clipboard, lists, and memory CRUD) with approval gates.
+A no-nonsense CLI for talking to LLMs with actual superpowers. Chat in REPL mode or fire one-off questions. Optional agent mode lets the AI run shell commands, edit files, make HTTP calls, and manage local todos/memory—all with approval gates you control.
 
 ## Features
 
-- Interactive REPL chat mode with slash commands
-- One-shot prompt mode (`ask "..."`) with optional stdin piping
-- Streaming rendered markdown output
-- Agent mode with function/tool calling
-- Per-action approval flow with optional `--yolo` auto-approve
-- Local chat history in SQLite
-- Local vector memory store (view/add/update/delete)
-- Named lists/todos stored locally (usable via agent tool)
-- Shell completion generation for bash/zsh/fish
-- System prompt override from file (`--system`)
+- **REPL chat** with slash commands for config on the fly
+- **One-shot mode** for quick questions (pipes stdin too)
+- **Streaming markdown** rendering as you type
+- **Agent mode** with tool calling (shell, file ops, HTTP, clipboard, todos, memory)
+- **Approval gates** per action (bypass with `--yolo` if you're in a hurry)
+- **Chat history** persisted in SQLite
+- **Vector memory** store for long-term context (add/view/update/delete)
+- **Named lists/todos** stored locally (accessible to the agent)
+- **Shell completions** for bash/zsh/fish
+- **Custom system prompts** (load from file)
 
 ## Requirements
 
-- Go 1.25+
-- `GEMINI_API_KEY` in environment
+Go 1.25+ and a Gemini API key. Set it in your environment:
 
 ```bash
 export GEMINI_API_KEY="your_key_here"
 ```
 
-## Install
+## Quick Start
 
 ```bash
 git clone https://github.com/zephex/go-ask.git
 cd go-ask
 go build -o ask
+./ask "Your question here"
 ```
 
-Optional:
+Or install globally:
 
 ```bash
 sudo mv ask /usr/local/bin/
@@ -51,146 +51,174 @@ sudo mv ask /usr/local/bin/
 
 ## Usage
 
+**One-shot mode:**
 ```bash
 ask "What is a goroutine?"
 ask --model exp "Analyze this architecture"
 cat main.go | ask "Explain this code"
 ```
 
-### Model aliases
+**Chat mode:**
+```bash
+ask --chat
+# or
+ask chat
+```
 
-- `free` -> `gemma-4-26b-a4b-it` (default)
-- `cheap` -> `gemini-3.1-flash-lite-preview`
-- `exp` -> `gemini-3-flash-preview`
+**Agent mode (enable tool calling):**
+```bash
+ask --chat --agent
+```
 
-### Reasoning levels
+Auto-approve tool actions (use with caution):
+```bash
+ask --chat --agent --yolo
+```
 
-- `HIGH`
-- `MED` / `MID` / `MEDIUM`
+## Model Aliases
+
+Quick names for common models:
+- `free` – `gemma-4-26b-a4b-it` (default, fast)
+- `cheap` – `gemini-3.1-flash-lite-preview` (ultra-light)
+- `exp` – `gemini-3-flash-preview` (more capable)
+
+Or pass any full model name.
+
+## Reasoning Control
+
+Dial up the thinking time (higher = slower, more accurate):
+- `HIGH` – deep reasoning
+- `MED` / `MEDIUM` / `MID`
 - `LOW`
-- `MIN` / `MINIMAL`
+- `MIN` / `MINIMAL` – fast, lightweight
 
-### Useful flags
+## Common Flags
 
-- `--chat` start REPL
-- `--agent` enable tool calling in REPL
-- `--yolo` auto-approve tool actions that normally prompt
-- `--stream` stream rendered markdown (default `true`)
-- `--system <file>` load custom system prompt
-- `--clear` clear local conversation history
+```
+--chat              Start REPL mode
+--agent             Enable tool calling
+--yolo              Auto-approve all actions
+--stream            Stream markdown as it renders (default: on)
+--system <file>     Load custom system prompt
+--model <alias>     Pick a model
+--reason <level>    Set reasoning level
+--clear             Nuke chat history on startup
+```
 
-## Chat Mode
+## Chat Mode (REPL)
 
-Start:
+Drop into an interactive session with slash commands for everything:
 
 ```bash
-ask chat
-# or
 ask --chat
 ```
 
-Slash commands:
+**Available commands:**
+- `/help` – show this list
+- `/status` – what model/settings are active
+- `/model <name>` – switch models on the fly
+- `/reason <level>` – adjust reasoning (HIGH/MED/LOW/MIN)
+- `/stream on|off` – toggle streaming output
+- `/agent on|off` – enable/disable tool calling
+- `/yolo on|off` – auto-approve tools
+- `/pwd` – print working directory
+- `/cd <path>` – change directory for tool commands
+- `/history [n]` – show last n messages
+- `/clear` – wipe current conversation
+- `/memories` – open the memory manager
+- `/exit` or `/quit` – leave
 
-- `/help`
-- `/status`
-- `/model <alias|name>`
-- `/reason <HIGH|MED|LOW|MIN>`
-- `/stream on|off`
-- `/agent on|off`
-- `/yolo on|off`
-- `/pwd`
-- `/cd <path>`
-- `/history [n]`
-- `/clear`
-- `/memories` (opens memory manager)
-- `/exit` or `/quit`
+## Memory (Vector Store)
 
-## Memory
+Store facts locally and let the AI access them across chats. Useful for storing coding patterns, project context, or anything you want the agent to remember.
 
-Long-term memory is stored locally in a chromem persistent DB and is accessible in two ways:
-
-- CLI: `ask memories` (list), `ask memories manage` (interactive manager)
+**Access:**
+- CLI: `ask memories` (list), `ask memories manage` (interactive editor)
 - Agent tools: `memory_view`, `memory_add`, `memory_update`, `memory_delete`
 
-Memory manager commands:
+**Manager commands:**
+- `l` / `list` – show all
+- `d <n>` / `del <n>` – delete entry n
+- `da` / `delall` – nuke everything
+- `q` / `quit` – exit manager
 
-- `l` / `list`
-- `d <n>` / `del <n>`
-- `da` / `delall`
-- `q` / `quit`
+### How It Works
 
-Important current behavior:
+**Storage:** Chromem persistent DB in `~/db`. Each memory gets a stable hash-based ID.
 
-- Memory is **not automatically injected** into prompts in agent mode.
-- Automatic per-turn memory extraction/saving is currently **disabled** in runtime flow.
-- Memory changes currently happen through explicit memory management commands/tools.
+**Management:** Explicit (for now). Memories don't auto-inject into every prompt. You manage them via CLI or the agent tools. Automatic extraction/saving is disabled by design—keep it simple.
 
-### How Memory Works
+**Architecture:**
+- Memories live in a local vector DB under `~/db`
+- Each entry has a stable `id` (content hash) and `content`
+- Retrieval code exists but isn't wired into agent prompts yet
+- Automatic per-turn saving is commented out (can be enabled if needed)
 
-1. Storage layer
-- Memories are stored in a local chromem persistent DB under `~/db`.
-- Each memory is a document with a stable `id` and `content`.
-- IDs are generated from content hashing for deterministic identity.
-
-2. Listing and management
-- `ask memories` prints stored memory entries.
-- `ask memories manage` opens an interactive manager for list/delete/delete-all.
-- In agent mode, the model can call `memory_view`, `memory_add`, `memory_update`, and `memory_delete`.
-
-3. Memory retrieval behavior
-- There is retrieval/query code in the project (`recallMemories` and `injectMemoryContext`), but it is currently not wired into agent turn prompts.
-- That means memory is not auto-attached to every model request right now.
-
-4. Automatic memory extraction status
-- The project includes async memory extraction/saving code (`scheduleRememberTurn` + extractor prompt flow).
-- At runtime, those calls are currently commented out in the main chat/request flow.
-- Result: memory writes are currently explicit/manual (CLI manager or memory CRUD tools), not automatic per turn.
+**Status:** Memory is read/write explicit only. No automatic context injection yet. Call memory tools in the agent to use them.
 
 ## Agent Tools
 
-When agent mode is on (`ask --chat --agent`), these tools are available:
+Enable with `--agent`. The AI can call these tools automatically (with approval, unless `--yolo`):
 
-1. `run_shell_command`
-- Runs `bash -lc` command in selected directory
-- Returns stdout/stderr/exit code/duration
-- Requires approval unless `--yolo`
+**`run_shell_command`** – Execute bash
+- Runs in your selected directory
+- Returns stdout, stderr, exit code, timing
+- **Approval required** (unless `--yolo`)
 
-2. `read_file`
-- Reads file contents
-- Optional `start_line`/`end_line`
-- Read-only, no approval
+**`read_file`** – Read file contents
+- Supports `start_line` / `end_line` for partial reads
+- No approval needed (read-only)
 
-3. `write_file`
-- Exact string replacement (`old_str` -> `new_str`)
-- Shows a diff preview
-- Requires approval unless `--yolo`
+**`write_file`** – Edit files
+- Exact string replacement (`old_str` → `new_str`)
+- Shows diff preview before confirming
+- **Approval required** (unless `--yolo`)
 
-4. `clipboard`
-- `read` clipboard (no approval)
-- `write` clipboard (approval required unless `--yolo`)
+**`clipboard`** – Read/write system clipboard
+- Read: no approval
+- Write: **approval required** (unless `--yolo`)
 
-5. `lists`
+**`lists`** – Manage todos/lists
 - Actions: `create_list`, `delete_list`, `get_lists`, `add_item`, `update_item`, `delete_item`, `get_items`
-- `delete_list` requires approval unless `--yolo`
+- Deletions need approval (unless `--yolo`)
 
-6. `http_request`
-- Supports `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
-- GET does not require approval
-- `POST`/`PUT`/`PATCH`/`DELETE` require approval unless `--yolo`
+**`http_request`** – Make HTTP calls
+- Verbs: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
+- GET: no approval
+- Write ops (POST/PUT/PATCH/DELETE): **approval required** (unless `--yolo`)
 
-7. `memory_view`
-- Lists stored memories with stable IDs
+**`memory_view`** – List stored memories
+- No approval needed
 
-8. `memory_add`
-- Adds a memory item
+**`memory_add`** – Store a new memory
+- No approval needed
 
-9. `memory_update`
-- Updates memory content by ID
+**`memory_update`** – Update existing memory
+- No approval needed
 
-10. `memory_delete`
-- Deletes memory by ID
+**`memory_delete`** – Delete memory entry
+- No approval needed
 
-## Completions
+## Telegram Integration
+
+Run `ask` as a Telegram bot. Chat with the AI directly in Telegram with slash commands for config.
+
+**Setup:**
+1. Create a bot with BotFather on Telegram (get your token)
+2. Set env var: `export TELEGRAM_BOT_TOKEN="your_token_here"`
+3. Start the bot: `ask --background=true`
+
+**Available commands:**
+- `/start` – welcome message
+- `/help` or `/about` – show commands
+- `/model <name>` – switch AI model
+- `/reasoning <level>` – adjust reasoning (HIGH/MEDIUM/LOW/MINIMAL)
+
+Just send regular messages—they'll be processed by the AI and responses saved locally in SQLite. Perfect for keeping an AI assistant in your pocket.
+
+## Shell Completions
+
+Generate completions for your shell:
 
 ```bash
 ask completion bash
@@ -198,17 +226,19 @@ ask completion zsh
 ask completion fish
 ```
 
-## Data Locations
+## Data Persistence
 
-- Conversation + lists (SQLite): `~/.ask-go.db`
-- Vector memory DB (chromem): `~/db`
+- **Chat history & lists (SQLite):** `~/.ask-go.db`
+- **Vector memory (chromem):** `~/db/`
 
-## Safety Notes
+Everything stays on your machine.
 
-- `--chat --agent --yolo` auto-approves sensitive tool actions.
-- Use `--yolo` only in trusted environments.
-- Prompt content and chat history are stored locally.
+## Important Notes
+
+- **`--yolo` is dangerous.** Auto-approves shell commands, file writes, and HTTP requests. Only use in controlled environments or when you fully trust the AI's behavior.
+- **Chat data is local.** Your conversations aren't sent anywhere except to the model provider (Gemini API).
+- **No telemetry.** This is just Go + SQLite + local vectors.
 
 ## License
 
-MIT (see `LICENSE`).
+MIT (see `LICENSE`)
