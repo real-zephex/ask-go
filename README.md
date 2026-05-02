@@ -203,6 +203,12 @@ Enable with `--agent`. The AI can call these tools automatically (with approval,
 - GET: no approval
 - Write ops (POST/PUT/PATCH/DELETE): **approval required** (unless `--yolo`)
 
+**`mail`** – Manage AgentMail inbox threads and messages
+
+- Actions: `get_threads`, `get_thread`, `send_email`, `reply_to_message`, `forward_message`, `delete_thread`
+- Requires `AGENT_MAIL_API_KEY` and `INBOX_NAME` environment variables
+- Send/reply/forward/delete: **approval required** (unless `--yolo`)
+
 **`memory_view`** – List stored memories
 
 - No approval needed

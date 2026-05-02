@@ -201,6 +201,46 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 		"required": []string{"url"},
 	}
 
+	mailSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"action": map[string]any{
+				"type":        "string",
+				"description": "Action to perform: get_threads, get_thread, send_email, reply_to_message, forward_message, delete_thread",
+				"enum":        []string{"get_threads", "get_thread", "send_email", "reply_to_message", "forward_message", "delete_thread"},
+			},
+			"thread_id": map[string]any{
+				"type":        "string",
+				"description": "Thread ID for get_thread or delete_thread",
+			},
+			"message_id": map[string]any{
+				"type":        "string",
+				"description": "Message ID for reply_to_message or forward_message",
+			},
+			"to": map[string]any{
+				"type":        "string",
+				"description": "Recipient email address",
+			},
+			"subject": map[string]any{
+				"type":        "string",
+				"description": "Subject for send_email",
+			},
+			"text": map[string]any{
+				"type":        "string",
+				"description": "Plain text body",
+			},
+			"html": map[string]any{
+				"type":        "string",
+				"description": "HTML body",
+			},
+			"reply_to": map[string]any{
+				"type":        "string",
+				"description": "Reply-to message id for reply_to_message",
+			},
+		},
+		"required": []string{"action"},
+	}
+
 	sendDocumentsSchema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -272,6 +312,11 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 				Name:                 "http_request",
 				Description:          "Make HTTP requests to any URL and receive structured responses. Supports GET, POST, PUT, PATCH, and DELETE methods with custom headers and body. POST/PUT/PATCH/DELETE require user approval unless --yolo is active.",
 				ParametersJsonSchema: httpRequestSchema,
+			},
+			{
+				Name:                 "mail",
+				Description:          "Manage AgentMail inbox threads and messages: list threads, fetch a thread, send, reply, forward, or delete a thread. Send/reply/forward/delete require user approval unless --yolo is active.",
+				ParametersJsonSchema: mailSchema,
 			},
 			{
 				Name:                 "send_document_over_telegram",
@@ -558,6 +603,28 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql
 
 		res := executeHTTPRequest(req)
 		printHTTPRequestResult(res)
+		return res.toToolResponse()
+	case "mail":
+		req, err := parseMailRequest(call.Args)
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+
+		if !autoApprove && mailActionNeedsApproval(req.Action) {
+			printMailCall(req)
+			if !askForMailApproval() {
+				printMailDenied()
+				return map[string]any{
+					"error": map[string]any{"message": "operation denied by user"},
+					"output": map[string]any{
+						"action": req.Action,
+					},
+				}
+			}
+		}
+
+		res := executeMail(req)
+		printMailResult(res)
 		return res.toToolResponse()
 	default:
 		return map[string]any{
