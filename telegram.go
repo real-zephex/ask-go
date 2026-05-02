@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	bot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -12,7 +13,8 @@ var telegramBot *bot.BotAPI
 var geminiKey string
 var tgModel string = "gemini-3.1-flash-lite-preview"
 var tgReasoning string = "MINIMAL"
-var tgChatId int64
+
+const telegramMaxMessageLen = 4000
 
 func setGeminiKey() error {
 	var exists bool
@@ -36,8 +38,33 @@ func botClient(key string) error {
 	return nil
 }
 
-func sendDocument(filepath string) error {
+func splitTelegramMessage(text string, maxLen int) []string {
+	if maxLen <= 0 {
+		return []string{text}
+	}
+
+	runes := []rune(text)
+	if len(runes) <= maxLen {
+		return []string{text}
+	}
+
+	chunks := make([]string, 0, (len(runes)+maxLen-1)/maxLen)
+	for start := 0; start < len(runes); start += maxLen {
+		end := start + maxLen
+		if end > len(runes) {
+			end = len(runes)
+		}
+		chunks = append(chunks, string(runes[start:end]))
+	}
+
+	return chunks
+}
+
+func sendDocument(chatID int64, filepath string) error {
 	fmt.Println("[DEBUG] sendDocument called with filepath:", filepath)
+	if chatID <= 0 {
+		return fmt.Errorf("telegram chat id is not set")
+	}
 
 	exists, reason := fileExists(filepath)
 	if !exists {
@@ -47,8 +74,8 @@ func sendDocument(filepath string) error {
 	}
 	fmt.Println("[DEBUG] File exists, proceeding to send document")
 
-	msg := bot.NewDocument(tgChatId, bot.FilePath(filepath))
-	fmt.Println("[DEBUG] Document message created for chat ID:", tgChatId)
+	msg := bot.NewDocument(chatID, bot.FilePath(filepath))
+	fmt.Println("[DEBUG] Document message created for chat ID:", chatID)
 
 	_, err := telegramBot.Send(msg)
 	if err != nil {
@@ -60,8 +87,11 @@ func sendDocument(filepath string) error {
 	return nil
 }
 
-func sendImage(filepath string) error {
+func sendImage(chatID int64, filepath string) error {
 	fmt.Println("[DEBUG] sendImage called with filepath:", filepath)
+	if chatID <= 0 {
+		return fmt.Errorf("telegram chat id is not set")
+	}
 
 	exists, reason := fileExists(filepath)
 	if !exists {
@@ -71,8 +101,8 @@ func sendImage(filepath string) error {
 	}
 	fmt.Println("[DEBUG] Image file exists, proceeding to send image")
 
-	msg := bot.NewPhoto(tgChatId, bot.FilePath(filepath))
-	fmt.Println("[DEBUG] Image message created for chat ID:", tgChatId)
+	msg := bot.NewPhoto(chatID, bot.FilePath(filepath))
+	fmt.Println("[DEBUG] Image message created for chat ID:", chatID)
 
 	_, err := telegramBot.Send(msg)
 	if err != nil {
@@ -85,17 +115,29 @@ func sendImage(filepath string) error {
 }
 
 func sendMessage(text string, message *bot.Message) {
+	if message == nil {
+		return
+	}
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+
 	chatId := message.Chat.ID
 	messageID := message.MessageID
+	chunks := splitTelegramMessage(text, telegramMaxMessageLen)
 
-	msg := bot.NewMessage(chatId, text)
-	msg.ReplyToMessageID = messageID
+	for i, chunk := range chunks {
+		msg := bot.NewMessage(chatId, chunk)
+		if i == 0 {
+			msg.ReplyToMessageID = messageID
+		}
 
-	_, err := telegramBot.Send(msg)
-
-	if err != nil {
-		fError := fmt.Errorf("Error while sending message to client: %v", err)
-		fmt.Println(fError)
+		_, err := telegramBot.Send(msg)
+		if err != nil {
+			fError := fmt.Errorf("Error while sending message to client: %v", err)
+			fmt.Println(fError)
+			return
+		}
 	}
 }
 
@@ -155,16 +197,8 @@ func botConfig(ctx context.Context, db *sql.DB) {
 		receivedMessage := update.Message.Text
 		// my user id
 		id := update.Message.Chat.ID
-		tgChatId = id
-		// the id of the reply
-		messageId := update.Message.MessageID
 
-		// make a new message, with my id and the message
-		res := runAgentTurn(ctx, db, geminiKey, receivedMessage, tgModel, "MINIMAL", true)
-
-		msg := bot.NewMessage(id, receivedMessage)
-		// set the reply to id (idk)
-		msg.ReplyToMessageID = messageId
+		res := runAgentTurn(ctx, db, geminiKey, receivedMessage, tgModel, tgReasoning, true, id)
 
 		sendMessage(res, message)
 

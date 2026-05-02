@@ -289,7 +289,7 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 	return cfg
 }
 
-func runAgentTurn(ctx context.Context, db *sql.DB, key string, query string, model string, reasoning string, autoApprove bool) string {
+func runAgentTurn(ctx context.Context, db *sql.DB, key string, query string, model string, reasoning string, autoApprove bool, telegramChatID int64) string {
 	messages := getHistory(db, 20)
 	// since we have crud tools for managing memories, model can interact with them directly and injecting memory into the prompt will only clutter it
 	//	queryWithMemory := injectMemoryContext(ctx, query)
@@ -319,7 +319,7 @@ func runAgentTurn(ctx context.Context, db *sql.DB, key string, query string, mod
 
 		responses := make([]*genai.Part, 0, len(functionCalls))
 		for _, call := range functionCalls {
-			response := handleAgentFunctionCall(call, autoApprove, db)
+			response := handleAgentFunctionCall(call, autoApprove, db, telegramChatID)
 			responses = append(responses, &genai.Part{
 				FunctionResponse: &genai.FunctionResponse{
 					ID:       call.ID,
@@ -338,7 +338,7 @@ func runAgentTurn(ctx context.Context, db *sql.DB, key string, query string, mod
 	return "Agent stopped after too many tool iterations. Try a more specific instruction."
 }
 
-func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql.DB) map[string]any {
+func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql.DB, telegramChatID int64) map[string]any {
 	if call == nil {
 		return map[string]any{"error": map[string]any{"message": "nil function call"}}
 	}
@@ -465,9 +465,12 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql
 			fmt.Println("[ERROR] Failed to parse document send request:", err)
 			return map[string]any{"error": map[string]any{"message": err.Error()}}
 		}
+		if telegramChatID <= 0 {
+			return map[string]any{"error": map[string]any{"message": "telegram chat id is not set"}}
+		}
 
 		fmt.Println("[DEBUG] Sending document to Telegram:", req.FilePath)
-		sendError := sendDocument(req.FilePath)
+		sendError := sendDocument(telegramChatID, req.FilePath)
 		if sendError != nil {
 			fmt.Println("[ERROR] Document send failed:", sendError)
 			return map[string]any{"error": map[string]any{"message": sendError.Error()}}
@@ -485,9 +488,12 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql
 			fmt.Println("[ERROR] Failed to parse image send request:", err)
 			return map[string]any{"error": map[string]any{"message": err.Error()}}
 		}
+		if telegramChatID <= 0 {
+			return map[string]any{"error": map[string]any{"message": "telegram chat id is not set"}}
+		}
 
 		fmt.Println("[DEBUG] Sending image to Telegram:", req.FilePath)
-		sendError := sendImage(req.FilePath)
+		sendError := sendImage(telegramChatID, req.FilePath)
 		if sendError != nil {
 			fmt.Println("[ERROR] Image send failed:", sendError)
 			return map[string]any{"error": map[string]any{"message": sendError.Error()}}
