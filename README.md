@@ -52,6 +52,7 @@ sudo mv ask /usr/local/bin/
 ## Usage
 
 **One-shot mode:**
+
 ```bash
 ask "What is a goroutine?"
 ask --model exp "Analyze this architecture"
@@ -59,6 +60,7 @@ cat main.go | ask "Explain this code"
 ```
 
 **Chat mode:**
+
 ```bash
 ask --chat
 # or
@@ -66,11 +68,13 @@ ask chat
 ```
 
 **Agent mode (enable tool calling):**
+
 ```bash
 ask --chat --agent
 ```
 
 Auto-approve tool actions (use with caution):
+
 ```bash
 ask --chat --agent --yolo
 ```
@@ -78,6 +82,7 @@ ask --chat --agent --yolo
 ## Model Aliases
 
 Quick names for common models:
+
 - `free` – `gemma-4-26b-a4b-it` (default, fast)
 - `cheap` – `gemini-3.1-flash-lite-preview` (ultra-light)
 - `exp` – `gemini-3-flash-preview` (more capable)
@@ -87,6 +92,7 @@ Or pass any full model name.
 ## Reasoning Control
 
 Dial up the thinking time (higher = slower, more accurate):
+
 - `HIGH` – deep reasoning
 - `MED` / `MEDIUM` / `MID`
 - `LOW`
@@ -114,6 +120,7 @@ ask --chat
 ```
 
 **Available commands:**
+
 - `/help` – show this list
 - `/status` – what model/settings are active
 - `/model <name>` – switch models on the fly
@@ -133,10 +140,12 @@ ask --chat
 Store facts locally and let the AI access them across chats. Useful for storing coding patterns, project context, or anything you want the agent to remember.
 
 **Access:**
+
 - CLI: `ask memories` (list), `ask memories manage` (interactive editor)
 - Agent tools: `memory_view`, `memory_add`, `memory_update`, `memory_delete`
 
 **Manager commands:**
+
 - `l` / `list` – show all
 - `d <n>` / `del <n>` – delete entry n
 - `da` / `delall` – nuke everything
@@ -149,6 +158,7 @@ Store facts locally and let the AI access them across chats. Useful for storing 
 **Management:** Explicit (for now). Memories don't auto-inject into every prompt. You manage them via CLI or the agent tools. Automatic extraction/saving is disabled by design—keep it simple.
 
 **Architecture:**
+
 - Memories live in a local vector DB under `~/db`
 - Each entry has a stable `id` (content hash) and `content`
 - Retrieval code exists but isn't wired into agent prompts yet
@@ -161,42 +171,52 @@ Store facts locally and let the AI access them across chats. Useful for storing 
 Enable with `--agent`. The AI can call these tools automatically (with approval, unless `--yolo`):
 
 **`run_shell_command`** – Execute bash
+
 - Runs in your selected directory
 - Returns stdout, stderr, exit code, timing
 - **Approval required** (unless `--yolo`)
 
 **`read_file`** – Read file contents
+
 - Supports `start_line` / `end_line` for partial reads
 - No approval needed (read-only)
 
 **`write_file`** – Edit files
+
 - Exact string replacement (`old_str` → `new_str`)
 - Shows diff preview before confirming
 - **Approval required** (unless `--yolo`)
 
 **`clipboard`** – Read/write system clipboard
+
 - Read: no approval
 - Write: **approval required** (unless `--yolo`)
 
 **`lists`** – Manage todos/lists
+
 - Actions: `create_list`, `delete_list`, `get_lists`, `add_item`, `update_item`, `delete_item`, `get_items`
 - Deletions need approval (unless `--yolo`)
 
 **`http_request`** – Make HTTP calls
+
 - Verbs: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
 - GET: no approval
 - Write ops (POST/PUT/PATCH/DELETE): **approval required** (unless `--yolo`)
 
 **`memory_view`** – List stored memories
+
 - No approval needed
 
 **`memory_add`** – Store a new memory
+
 - No approval needed
 
 **`memory_update`** – Update existing memory
+
 - No approval needed
 
 **`memory_delete`** – Delete memory entry
+
 - No approval needed
 
 ## Telegram Integration
@@ -204,11 +224,13 @@ Enable with `--agent`. The AI can call these tools automatically (with approval,
 Run `ask` as a Telegram bot. Chat with the AI directly in Telegram with slash commands for config.
 
 **Setup:**
+
 1. Create a bot with BotFather on Telegram (get your token)
 2. Set env var: `export TELEGRAM_BOT_TOKEN="your_token_here"`
 3. Start the bot: `ask --background=true`
 
 **Available commands:**
+
 - `/start` – welcome message
 - `/help` or `/about` – show commands
 - `/model <name>` – switch AI model

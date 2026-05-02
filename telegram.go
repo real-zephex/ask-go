@@ -12,6 +12,7 @@ var telegramBot *bot.BotAPI
 var geminiKey string
 var tgModel string = "gemini-3.1-flash-lite-preview"
 var tgReasoning string = "MINIMAL"
+var tgChatId int64
 
 func setGeminiKey() error {
 	var exists bool
@@ -32,6 +33,54 @@ func botClient(key string) error {
 		return fError
 	}
 	telegramBot.Debug = true
+	return nil
+}
+
+func sendDocument(filepath string) error {
+	fmt.Println("[DEBUG] sendDocument called with filepath:", filepath)
+
+	exists, reason := fileExists(filepath)
+	if !exists {
+		fmt.Println("[ERROR] File not found:", filepath, "reason:", reason)
+		fError := fmt.Errorf("There was an error verifying the existence of file: %v", reason)
+		return fError
+	}
+	fmt.Println("[DEBUG] File exists, proceeding to send document")
+
+	msg := bot.NewDocument(tgChatId, bot.FilePath(filepath))
+	fmt.Println("[DEBUG] Document message created for chat ID:", tgChatId)
+
+	_, err := telegramBot.Send(msg)
+	if err != nil {
+		fmt.Println("[ERROR] Failed to send document:", err)
+		fError := fmt.Errorf("There was an error sending the document over telegram: %v", err)
+		return fError
+	}
+	fmt.Println("[DEBUG] Document sent successfully")
+	return nil
+}
+
+func sendImage(filepath string) error {
+	fmt.Println("[DEBUG] sendImage called with filepath:", filepath)
+
+	exists, reason := fileExists(filepath)
+	if !exists {
+		fmt.Println("[ERROR] Image file not found:", filepath, "reason:", reason)
+		fError := fmt.Errorf("There was an error verifying the existence of file: %v", reason)
+		return fError
+	}
+	fmt.Println("[DEBUG] Image file exists, proceeding to send image")
+
+	msg := bot.NewPhoto(tgChatId, bot.FilePath(filepath))
+	fmt.Println("[DEBUG] Image message created for chat ID:", tgChatId)
+
+	_, err := telegramBot.Send(msg)
+	if err != nil {
+		fmt.Println("[ERROR] Failed to send image:", err)
+		fError := fmt.Errorf("There was an error sending the image over telegram: %v", err)
+		return fError
+	}
+	fmt.Println("[DEBUG] Image sent successfully")
 	return nil
 }
 
@@ -106,6 +155,7 @@ func botConfig(ctx context.Context, db *sql.DB) {
 		receivedMessage := update.Message.Text
 		// my user id
 		id := update.Message.Chat.ID
+		tgChatId = id
 		// the id of the reply
 		messageId := update.Message.MessageID
 

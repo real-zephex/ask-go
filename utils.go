@@ -82,3 +82,12 @@ func askForCommandApproval() bool {
 		}
 	}
 }
+
+func fileExists(path string) (bool, string) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, "the file does not exist"
+	}
+
+	return !info.IsDir(), "file exists"
+}

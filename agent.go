@@ -201,6 +201,26 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 		"required": []string{"url"},
 	}
 
+	sendDocumentsSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"filepath": map[string]any{
+				"type":        "string",
+				"description": "Complete file path of the file that needs to be sent over Telegram",
+			},
+		},
+	}
+
+	sendImagesSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"filepath": map[string]any{
+				"type":        "string",
+				"description": "Complete file path of the image file that needs to be sent over Telegram",
+			},
+		},
+	}
+
 	cfg.Tools = append(cfg.Tools, &genai.Tool{
 		FunctionDeclarations: []*genai.FunctionDeclaration{
 			{
@@ -253,6 +273,16 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 				Description:          "Make HTTP requests to any URL and receive structured responses. Supports GET, POST, PUT, PATCH, and DELETE methods with custom headers and body. POST/PUT/PATCH/DELETE require user approval unless --yolo is active.",
 				ParametersJsonSchema: httpRequestSchema,
 			},
+			{
+				Name:                 "send_document_over_telegram",
+				Description:          "Send a document to the user when they are communicating over Telegram.",
+				ParametersJsonSchema: sendDocumentsSchema,
+			},
+			{
+				Name:                 "send_image_over_telegram",
+				Description:          "Send an image to the user when they are communicating over Telegram.",
+				ParametersJsonSchema: sendImagesSchema,
+			},
 		},
 	})
 
@@ -262,7 +292,7 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 func runAgentTurn(ctx context.Context, db *sql.DB, key string, query string, model string, reasoning string, autoApprove bool) string {
 	messages := getHistory(db, 20)
 	// since we have crud tools for managing memories, model can interact with them directly and injecting memory into the prompt will only clutter it
-//	queryWithMemory := injectMemoryContext(ctx, query)
+	//	queryWithMemory := injectMemoryContext(ctx, query)
 	contents := historyToGenAIContents(messages, query)
 
 	client := newGeminiClient(ctx, key)
@@ -428,6 +458,47 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql
 		res := executeWriteFile(req)
 		printWriteFileResult(res)
 		return res.toToolResponse()
+	case "send_document_over_telegram":
+		fmt.Println("[DEBUG] Agent function: send_document_over_telegram")
+		req, err := parseDocumentSendRequest(call.Args)
+		if err != nil {
+			fmt.Println("[ERROR] Failed to parse document send request:", err)
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+
+		fmt.Println("[DEBUG] Sending document to Telegram:", req.FilePath)
+		sendError := sendDocument(req.FilePath)
+		if sendError != nil {
+			fmt.Println("[ERROR] Document send failed:", sendError)
+			return map[string]any{"error": map[string]any{"message": sendError.Error()}}
+		}
+
+		fmt.Println("[DEBUG] Document handler completed successfully")
+		return map[string]any{
+			"ok":       true,
+			"filepath": req.FilePath,
+		}
+	case "send_image_over_telegram":
+		fmt.Println("[DEBUG] Agent function: send_image_over_telegram")
+		req, err := parseImageSendRequest(call.Args)
+		if err != nil {
+			fmt.Println("[ERROR] Failed to parse image send request:", err)
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+
+		fmt.Println("[DEBUG] Sending image to Telegram:", req.FilePath)
+		sendError := sendImage(req.FilePath)
+		if sendError != nil {
+			fmt.Println("[ERROR] Image send failed:", sendError)
+			return map[string]any{"error": map[string]any{"message": sendError.Error()}}
+		}
+
+		fmt.Println("[DEBUG] Image handler completed successfully")
+		return map[string]any{
+			"ok":       true,
+			"filepath": req.FilePath,
+		}
+
 	case "clipboard":
 		req, err := parseClipboardRequest(call.Args)
 		if err != nil {
@@ -506,7 +577,3 @@ func requiredStringArg(args map[string]any, key string) (string, error) {
 	}
 	return strings.TrimSpace(value), nil
 }
-
-
-
-
