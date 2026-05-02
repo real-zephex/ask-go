@@ -38,13 +38,13 @@ export GEMINI_API_KEY="your_key_here"
 
 The program reads these environment variables at runtime:
 
-| Variable | Required for | Notes |
-| --- | --- | --- |
-| `GEMINI_API_KEY` | Core CLI and agent mode | Required to talk to the Gemini API. |
-| `TELEGRAM_BOT_TOKEN` | Telegram background mode | Required when running `ask --background=true`. |
-| `AGENT_MAIL_API_KEY` | AgentMail tool | Required for the `mail` tool. |
-| `INBOX_NAME` | AgentMail tool | The inbox name used by the `mail` tool. |
-| `DISPLAY` or `WAYLAND_DISPLAY` | Clipboard tool | Needed when using clipboard features in a graphical session. |
+| Variable                       | Required for             | Notes                                                        |
+| ------------------------------ | ------------------------ | ------------------------------------------------------------ |
+| `GEMINI_API_KEY`               | Core CLI and agent mode  | Required to talk to the Gemini API.                          |
+| `TELEGRAM_BOT_TOKEN`           | Telegram background mode | Required when running `ask --background=true`.               |
+| `AGENT_MAIL_API_KEY`           | AgentMail tool           | Required for the `mail` tool.                                |
+| `INBOX_NAME`                   | AgentMail tool           | The inbox name used by the `mail` tool.                      |
+| `DISPLAY` or `WAYLAND_DISPLAY` | Clipboard tool           | Needed when using clipboard features in a graphical session. |
 
 If you only use the local CLI, `GEMINI_API_KEY` is the only required variable.
 
