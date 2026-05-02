@@ -190,6 +190,31 @@ func printMailResult(res mailResult) {
 	}
 }
 
+func printTextToSpeechCall(req textToSpeechRequest) {
+	lines := []string{toolStyle.Render("↳ tool: text_to_speech_file")}
+	preview := truncateMailPreview(req.Text, 240, 5)
+	lines = append(lines, subtleStyle.Render(fmt.Sprintf("text (%d chars):", len([]rune(req.Text)))))
+	if preview != "" {
+		lines = append(lines, preview)
+	}
+	fmt.Println(renderToolBlock(lines))
+}
+
+func printTextToSpeechResult(res textToSpeechResult) {
+	if res.ExecutionErr != "" {
+		line := subtleStyle.Render(fmt.Sprintf("tool result: error • %s", res.ExecutionErr))
+		fmt.Println(renderToolBlock([]string{line}))
+		return
+	}
+
+	lines := []string{
+		subtleStyle.Render("tool result: ok • mp3 file created"),
+		subtleStyle.Render("filepath: " + res.FilePath),
+		subtleStyle.Render("next: send_document_over_telegram"),
+	}
+	fmt.Println(renderToolBlock(lines))
+}
+
 func printMemorySaved(stored int) {
 	fmt.Println(memoryOKStyle.Render(fmt.Sprintf("🧠 memory: saved %d item(s)", stored)))
 }

@@ -201,6 +201,17 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 		"required": []string{"url"},
 	}
 
+	textToSpeechSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"text": map[string]any{
+				"type":        "string",
+				"description": "Plain text to convert into speech. Strip markdown, code fences, bullets, quotes, and other formatting before calling this tool. Keep only the plain spoken content.",
+			},
+		},
+		"required": []string{"text"},
+	}
+
 	mailSchema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -312,6 +323,11 @@ func buildAgentGenerationConfig(reasoning string) *genai.GenerateContentConfig {
 				Name:                 "http_request",
 				Description:          "Make HTTP requests to any URL and receive structured responses. Supports GET, POST, PUT, PATCH, and DELETE methods with custom headers and body. POST/PUT/PATCH/DELETE require user approval unless --yolo is active.",
 				ParametersJsonSchema: httpRequestSchema,
+			},
+			{
+				Name:                 "text_to_speech_file",
+				Description:          "Convert plain text into an MP3 file using ElevenLabs and return the filepath. Strip markdown, code fences, bullets, quotes, and any surrounding explanation before calling this tool. The returned file can then be sent with send_document_over_telegram.",
+				ParametersJsonSchema: textToSpeechSchema,
 			},
 			{
 				Name:                 "mail",
@@ -603,6 +619,16 @@ func handleAgentFunctionCall(call *genai.FunctionCall, autoApprove bool, db *sql
 
 		res := executeHTTPRequest(req)
 		printHTTPRequestResult(res)
+		return res.toToolResponse()
+	case "text_to_speech_file":
+		req, err := parseTextToSpeechRequest(call.Args)
+		if err != nil {
+			return map[string]any{"error": map[string]any{"message": err.Error()}}
+		}
+
+		printTextToSpeechCall(req)
+		res := executeTextToSpeech(req)
+		printTextToSpeechResult(res)
 		return res.toToolResponse()
 	case "mail":
 		req, err := parseMailRequest(call.Args)

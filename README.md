@@ -44,6 +44,7 @@ The program reads these environment variables at runtime:
 | `TELEGRAM_BOT_TOKEN`           | Telegram background mode | Required when running `ask --background=true`.               |
 | `AGENT_MAIL_API_KEY`           | AgentMail tool           | Required for the `mail` tool.                                |
 | `INBOX_NAME`                   | AgentMail tool           | The inbox name used by the `mail` tool.                      |
+| `ELEVEN_LABS_API_KEY`          | TTS tool                 | Required for `text_to_speech_file`.                          |
 | `DISPLAY` or `WAYLAND_DISPLAY` | Clipboard tool           | Needed when using clipboard features in a graphical session. |
 
 If you only use the local CLI, `GEMINI_API_KEY` is the only required variable.
